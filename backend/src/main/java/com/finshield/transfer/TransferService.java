@@ -9,23 +9,24 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.finshield.security.RlsContext;
-
 @Service
 public class TransferService {
 
     private final JdbcTemplate jdbc;
-    private final RlsContext rls;
 
-    public TransferService(JdbcTemplate jdbc, RlsContext rls) {
+    public TransferService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
-        this.rls = rls;
     }
 
     @Transactional
     public UUID transfer(long customerId, String idempotencyKey,
                          String fromAccount, String toAccount, BigDecimal amount) {
-        rls.bind(customerId);
+
+        // "true" = transaction-local: the identity vanishes at commit/rollback,
+        // so a pooled connection can never leak one customer's identity to the next request.
+        jdbc.queryForObject("SELECT set_config('app.customer_id', ?, true)",
+                String.class, Long.toString(customerId));
+
         try {
             return jdbc.queryForObject("SELECT fn_post_transfer(?, ?, ?, ?)",
                     UUID.class, idempotencyKey, fromAccount, toAccount, amount);
