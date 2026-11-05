@@ -147,4 +147,17 @@ class ApiSecurityTest extends AbstractDbTest {
         assertThat(r.statusCode()).isEqualTo(200);
         assertThat(r.body()).contains("\"valid\":true");
     }
+
+    // Day 6: ZAP-required security headers are present on every response.
+    @Test
+    void securityHeadersArePresentOnEveryResponse() throws Exception {
+        String token = login("alice", "Alice#Dev2026");
+        HttpResponse<String> r = call("GET", "/api/accounts", token, null, null);
+
+        assertThat(r.headers().firstValue("X-Content-Type-Options")).hasValue("nosniff");
+        assertThat(r.headers().firstValue("X-Frame-Options")).hasValue("DENY");
+        assertThat(r.headers().firstValue("Content-Security-Policy"))
+                .hasValue("default-src 'none'");
+        assertThat(r.headers().firstValue("Referrer-Policy")).hasValue("no-referrer");
+    }
 }

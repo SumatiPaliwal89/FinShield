@@ -1,0 +1,16 @@
+# ZAP alert configuration for FinShield
+# Format: Alert-ID  Action  Parameter  Evidence
+# Actions: IGNORE, WARN, FAIL
+#
+# 10021 — X-Content-Type-Options: Spring Security sets this automatically.
+10021	IGNORE	""	""
+# 10035 — Strict-Transport-Security: only on HTTPS; this is a dev-mode HTTP target.
+10035	IGNORE	""	""
+# 10038 — Content-Security-Policy: explicitly set in SecurityConfig (Day 6).
+10038	WARN	""	""
+# 10054 — Cookie without SameSite: app uses JWT Bearer tokens, not cookies.
+10054	IGNORE	""	""
+# 10055 — CSP: Script-src includes unsafe-inline: not relevant for a pure JSON API.
+10055	IGNORE	""	""
+# 10096 — Timestamp Disclosure: epoch-ms in JSON responses; not a vulnerability.
+10096	IGNORE	""	""
