@@ -21,6 +21,9 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 @Configuration
@@ -28,15 +31,26 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationConverter jwtConverter) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())   // stateless bearer-token API, no cookies
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/login", "/actuator/health").permitAll()
-                .anyRequest().authenticated())      // deny by default
-            .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
+                .requestMatchers("/api/audit/**").hasRole("AUDITOR")
+                .anyRequest().authenticated())
+            .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtConverter)));
         return http.build();
+    }
+
+    @Bean
+    JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter roles = new JwtGrantedAuthoritiesConverter();
+        roles.setAuthoritiesClaimName("roles");   // our claim from AuthService
+        roles.setAuthorityPrefix("ROLE_");        // hasRole("AUDITOR") looks for ROLE_AUDITOR
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(roles);
+        return converter;
     }
 
     @Bean

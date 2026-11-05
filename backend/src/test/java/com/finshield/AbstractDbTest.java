@@ -53,8 +53,14 @@ public abstract class AbstractDbTest {
         registry.add("spring.flyway.url", AbstractDbTest::url);
     }
 
+    /** Reset the database before each test. */
     @BeforeEach
     protected void resetData() {
+        // Test-only: the owner (a DBA-level actor) switches the append-only guard off to wipe the log.
+        owner.execute("ALTER TABLE audit_events DISABLE TRIGGER trg_audit_no_row_mutation");
+        owner.execute("DELETE FROM audit_events");
+        owner.execute("ALTER TABLE audit_events ENABLE TRIGGER trg_audit_no_row_mutation");
+
         owner.execute("TRUNCATE ledger_entries, idempotency_keys, transfers, security_events CASCADE");
         owner.update("""
                 UPDATE accounts SET balance = CASE account_number

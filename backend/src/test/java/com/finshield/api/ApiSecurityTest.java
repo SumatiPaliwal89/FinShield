@@ -132,4 +132,19 @@ class ApiSecurityTest extends AbstractDbTest {
 
         assertThat(call("GET", "/api/accounts", forged, null, null).statusCode()).isEqualTo(401);
     }
+    
+    @Test
+    void customersCannotReachAuditEndpoints() throws Exception {
+        String alice = login("alice", "Alice#Dev2026");
+        assertThat(call("GET", "/api/audit/verify", alice, null, null).statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void auditorCanVerifyTheChain() throws Exception {
+        String auditor = login("auditor", "Auditor#Dev2026");
+        HttpResponse<String> r = call("GET", "/api/audit/verify", auditor, null, null);
+
+        assertThat(r.statusCode()).isEqualTo(200);
+        assertThat(r.body()).contains("\"valid\":true");
+    }
 }
