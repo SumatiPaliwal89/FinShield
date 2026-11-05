@@ -37,6 +37,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
                 .requestMatchers("/api/auth/login", "/actuator/health").permitAll()
+                // Day 5 lab: developer mistakenly treats profile search as public data
+                .requestMatchers("/api/lab/profile/vuln").permitAll()
                 .requestMatchers("/api/audit/**").hasRole("AUDITOR")
                 .anyRequest().authenticated())
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(jwtConverter)));
