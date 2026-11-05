@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: finshield
+  datasource:                      # runtime: least-privilege role
+    url: jdbc:postgresql://localhost:5433/finshield
+    username: finshield_app
+    password: ${FINSHIELD_APP_PW:app_dev_pw}
+  flyway:                          # migrations: owner role, separate connection
+    url: jdbc:postgresql://localhost:5433/finshield
+    user: finshield_owner
+    password: ${FINSHIELD_OWNER_PW:owner_dev_pw}
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+finshield:
+  jwt:
+    secret: ${FINSHIELD_JWT_SECRET:dev-only-local-secret-do-not-use-in-prod-0123456789}
