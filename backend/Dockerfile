@@ -5,10 +5,10 @@ COPY mvnw .
 COPY .mvn .mvn
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
 COPY src src
-RUN ./mvnw package -DskipTests -q
+RUN ./mvnw package -DskipTests -q && mv target/finshield-*.jar target/app.jar
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
-COPY --from=build /app/target/finshield-*.jar app.jar
+COPY --from=build /app/target/app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
