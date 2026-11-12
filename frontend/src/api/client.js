@@ -1,4 +1,4 @@
-const BASE = '/api'
+const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api'
 
 async function request(method, path, token, body) {
   const headers = { 'Content-Type': 'application/json' }
@@ -54,6 +54,10 @@ export async function getLedger(token) {
   return request('GET', '/ledger', token)
 }
 
+export async function getTransfers(token) {
+  return request('GET', '/transfers', token)
+}
+
 // ── Transfers ────────────────────────────────────────────────────────────────
 
 export async function postTransfer(token, idempotencyKey, fromAccount, toAccount, amount) {
@@ -64,7 +68,7 @@ export async function postTransfer(token, idempotencyKey, fromAccount, toAccount
       Authorization: `Bearer ${token}`,
       'Idempotency-Key': idempotencyKey,
     },
-    body: JSON.stringify({ fromAccount, toAccount, amount }),
+    body: JSON.stringify({ from_account: fromAccount, to_account: toAccount, amount }),
   })
 
   const data = await res.json().catch(() => ({}))
@@ -112,4 +116,11 @@ export async function labBolaFixed(token) {
     headers: { Authorization: `Bearer ${token}` },
   })
   return { status: res.status, data: await res.json().catch(() => []) }
+}
+
+export async function labJwtTamper(tamperedToken) {
+  const res = await fetch(`${BASE}/accounts`, {
+    headers: { Authorization: `Bearer ${tamperedToken}` },
+  })
+  return { status: res.status, data: await res.json().catch(() => ({})) }
 }

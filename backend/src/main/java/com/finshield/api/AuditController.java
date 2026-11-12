@@ -48,6 +48,7 @@ public class AuditController {
                   SELECT id, event_type, actor, payload,
                          left(hash, 16) || '...' AS hash_preview,
                          hash,
+                         prev_hash,
                          left(prev_hash, 16) || '...' AS prev_hash_preview,
                          created_at
                   FROM audit_events
