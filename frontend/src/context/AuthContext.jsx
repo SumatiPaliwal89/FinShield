@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
     const data = { token, claims }
     try { sessionStorage.setItem('finshield_auth', JSON.stringify(data)) } catch (_) {}
     setAuth(data)
+    return claims
   }
 
   function signout() {

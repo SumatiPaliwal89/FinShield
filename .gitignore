@@ -3,3 +3,10 @@
 .idea/
 .vscode/
 __pycache__/
+docs/demo-walkthrough.md
+docs/deployment.md
+docs/project-overview.md
+docs/ppt-prompt.md
+docs/ppt-context.md
+Plan.md
+backend-run.log

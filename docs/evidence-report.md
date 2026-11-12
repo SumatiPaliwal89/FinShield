@@ -133,10 +133,10 @@ Advisory lock `727001` serializes concurrent audit writes, preventing race condi
 
 ---
 
-## Day 5 — Ethical Hacking Lab (OWASP A1 + A5)
+## Day 5 — Ethical Hacking Lab (OWASP A01 + A02 + A03)
 
 ### What was built
-Two deliberately vulnerable endpoints and their fixed counterparts, exercised by `EthicalHackingLabTest`.
+Three deliberately vulnerable endpoints and their fixed counterparts, exercised by `EthicalHackingLabTest`. The React **Threat Lab** page runs live API calls against each pair so the exploit and the defence are visible side-by-side.
 
 ### Vulnerability A1 — SQL Injection
 
@@ -167,7 +167,21 @@ return jdbc.queryForList(
     "SELECT full_name, email FROM customers WHERE full_name ILIKE ? ESCAPE '\\'", pattern);
 ```
 
-### Vulnerability A5 — Broken Object Level Authorization (BOLA)
+### Vulnerability A02 — JWT Tampering
+
+**What is demonstrated (frontend lab only — no new backend endpoint needed):**
+
+A JWT is three Base64url-encoded sections: `header.payload.signature`. The UI lets a user edit the payload (e.g. change `sub` to `"admin"` and `cid` to `999`) and reconstructs a JWT using the original header and signature with the modified payload. The tampered token is then sent to `GET /api/accounts`.
+
+**Result:** `401 Unauthorized` — the server rejects it because the HMAC-SHA256 signature was computed over the original `header.payload`. Changing any byte in the payload produces a different digest; the stored signature no longer matches.
+
+**Why it cannot succeed:** The signing secret is never exposed to the client. Without the secret an attacker cannot forge a valid signature for a modified payload. Spring Security's `NimbusJwtDecoder` performs this verification before the request reaches any controller — a `JwtValidationException` is thrown and Spring returns 401 automatically.
+
+**Security property:** Claims inside a JWT (identity, roles, customer ID) are signed and cannot be modified client-side. The `cid` claim that drives RLS binding is therefore always trustworthy.
+
+---
+
+### Vulnerability A01 — Broken Object Level Authorization (BOLA)
 
 **Vulnerable endpoint:** `GET /api/lab/customer/{id}/vuln` (requires auth)
 
@@ -389,6 +403,7 @@ All tests run against a real PostgreSQL 16 instance via Testcontainers. No mocks
 | JWT authentication | App | `JwtFilter.java`; `ApiSecurityTest` |
 | Timing-safe auth | App | `AuthService.java` constant-time comparison; `ApiSecurityTest.login_wrongPassword_401` |
 | SQL injection prevention | App | Parameterized queries; `EthicalHackingLabTest.fix_A2` |
+| JWT tamper resistance | App | HMAC-SHA256 signature; `NimbusJwtDecoder`; Security Lab A02 demo |
 | BOLA prevention | App | JWT-only identity; `EthicalHackingLabTest.fix_B1`, `fix_B2` |
 | Security headers | App | `SecurityConfig.java`; `ApiSecurityTest.securityHeadersArePresentOnEveryResponse` |
 | Independent verifier | CLI | `vaultscan.jar`; `docs/vaultscan.md` |
