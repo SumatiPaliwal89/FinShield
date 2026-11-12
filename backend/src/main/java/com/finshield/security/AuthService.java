@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthService {
 
-    public static final Duration TOKEN_TTL = Duration.ofMinutes(15);
+    public static final Duration TOKEN_TTL = Duration.ofMinutes(60);
 
     private record UserRow(long id, Long customerId, String passwordHash, boolean enabled) {
     }

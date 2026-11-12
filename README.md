@@ -9,7 +9,7 @@ A tamper-evident banking backend built in **Spring Boot + PostgreSQL**, demonstr
 ```
 ┌─────────────────────────────────────────────────────┐
 │  HTTP Client                                        │
-│    POST /api/auth/login  →  JWT (HS256, 15 min)     │
+│    POST /api/auth/login  →  JWT (HS256, 1 h)        │
 │    POST /api/transfers   →  Idempotency-Key header  │
 │    GET  /api/accounts    →  RLS-filtered response   │
 └───────────────────┬─────────────────────────────────┘
@@ -48,26 +48,35 @@ A tamper-evident banking backend built in **Spring Boot + PostgreSQL**, demonstr
 
 ## Quick Start
 
-**Prerequisites:** Java 21+, Docker
+**Prerequisites:** Java 21+, Docker, Node 18+
 
 ```bash
 # 1. Start Postgres
 docker compose up -d
 
-# 2. Run the app (Flyway applies all migrations automatically)
+# 2. Run the backend (Flyway applies all migrations automatically)
 cd backend && ./mvnw spring-boot:run
 
-# 3. Login
+# 3. Run the frontend (in a separate terminal)
+cd frontend && npm install && npm run dev
+# → http://localhost:5173
+```
+
+Sign in with any seed account (e.g. Alice / `Alice#Dev2026`). The UI demonstrates every security layer interactively.
+
+**curl quick-check:**
+
+```bash
+# Login
 curl -s -X POST http://localhost:8080/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"alice","password":"Alice#Dev2026"}' \
-  | python -m json.tool
+  -d '{"username":"alice","password":"Alice#Dev2026"}'
 
-# 4. Use the token (replace <TOKEN>)
+# Use the token (replace <TOKEN>)
 curl -s http://localhost:8080/api/accounts \
   -H 'Authorization: Bearer <TOKEN>'
 
-# 5. Transfer
+# Transfer
 curl -s -X POST http://localhost:8080/api/transfers \
   -H 'Authorization: Bearer <TOKEN>' \
   -H 'Content-Type: application/json' \
@@ -79,9 +88,9 @@ curl -s -X POST http://localhost:8080/api/transfers \
 
 | User | Password | Customer ID | Accounts |
 |------|----------|-------------|---------|
-| alice | Alice#Dev2026 | 1 | FS0000000001 (₹1,00,000), FS0000000002 (₹25,000) |
-| bob | Bob#Dev2026 | 2 | FS0000000003 (₹50,000) |
-| carol | Carol#Dev2026 | 3 | FS0000000004 (₹10,000) |
+| alice | Alice#Dev2026 | 1 | FS0000000001 (₹93,000), FS0000000002 (₹25,250) |
+| bob | Bob#Dev2026 | 2 | FS0000000003 (₹52,750) |
+| carol | Carol#Dev2026 | 3 | FS0000000004 (₹14,000) |
 | auditor | Auditor#Dev2026 | — | — |
 
 ---
@@ -125,11 +134,13 @@ All endpoints except `/api/auth/login` and `/actuator/health` require `Authoriza
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/transfers` | Create transfer. Requires `Idempotency-Key` header. Body: `{"fromAccount","toAccount","amount"}` |
+| GET  | `/api/transfers` | List up to 20 recent transfers involving the caller's accounts (RLS-filtered) |
 
 ### Audit (AUDITOR role only)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/audit/verify` | Walk full chain, re-compute every hash |
+| GET | `/api/audit/events` | Last 50 audit events as JSON (for chain visualiser) |
 | GET | `/api/audit/anchor-check?id=N&hash=H` | Compare stored checkpoint vs database |
 
 ### Error codes from `fn_post_transfer`
@@ -154,12 +165,13 @@ All endpoints except `/api/auth/login` and `/actuator/health` require `Authoriza
 | Transfer atomicity | Single SECURITY DEFINER function — app role cannot UPDATE balances directly |
 | Idempotency | SHA-256 of `(from, to, amount)` stored with each key; replays return original result |
 | Deadlock prevention | Accounts locked in ascending `id` order inside `fn_post_transfer` |
-| JWT | HS256, 15-min TTL, `cid` claim binds token to customer |
+| JWT | HS256, 1h TTL, `cid` claim binds token to customer |
 | Timing-safe auth | Unknown user and wrong password take equal time (constant BCrypt comparison) |
 | Username enumeration | Login failures return identical body regardless of whether the user exists |
 | Audit chain | SHA-256 hash chain, advisory-locked, written by trigger, never by app role |
 | Append-only triggers | UPDATE/DELETE/TRUNCATE on `audit_events` blocked even for table owner |
 | External anchor | `audit-anchor.json` stored outside the database; catches tail-deletion and full rewrites |
+| JWT tamper resistance | Signed with HS256; `NimbusJwtDecoder` rejects any modification before reaching a controller |
 | Security headers | CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy on every response |
 
 ---
@@ -194,34 +206,73 @@ See [`.github/workflows/zap.yml`](.github/workflows/zap.yml) for the CI security
 
 ---
 
+## Frontend
+
+A React + Vite + Tailwind UI at `frontend/` with eight pages across two sections:
+
+**Banking** (Customer role)
+
+| Page | What it shows |
+|------|--------------|
+| **Overview** | KPI cards (balance, accounts, transfers, session timer); RLS live switcher (Alice ↔ Bob); recent transfers; ledger volume chart |
+| **Accounts** | Account table; click any row to open a drawer with DEBIT/CREDIT ledger history |
+| **Transfers** | Transfer form with idempotency replay panel; RLS-filtered transfer history with FROM/TO account numbers |
+| **Activity** | Full ledger feed — DEBIT in red, CREDIT in green |
+
+**Security** (all roles; Auditor-only pages marked)
+
+| Page | What it shows |
+|------|--------------|
+| **Security Center** *(Auditor only)* | Security event log (logins, BOLA attempts, SQLi attempts) |
+| **Audit Ledger** *(Auditor only)* | Interactive SHA-256 chain visualiser; one-click chain verification |
+| **Threat Lab** | Live exploit/fix demos for OWASP A03 SQL Injection, A01 BOLA, A02 JWT Tampering — real HTTP calls |
+| **Session & Access** | JWT header/payload/signature inspector; role permissions matrix; active protections list |
+
+```bash
+cd frontend
+npm install
+npm run dev      # dev server on :5173 (proxies /api → :8080)
+npm run build    # production bundle
+```
+
+---
+
 ## Project Structure
 
 ```
 finshield/
 ├── backend/                   Spring Boot app
 │   └── src/
-│       ├── main/
-│       │   ├── java/com/finshield/
-│       │   │   ├── api/           REST controllers
-│       │   │   ├── audit/         AuditVerifier
-│       │   │   ├── lab/           Day 5 ethical hacking lab
-│       │   │   ├── security/      JWT, RLS context, SecurityConfig
-│       │   │   └── transfer/      TransferService
-│       │   └── resources/db/migration/
-│       │       ├── V1__schema.sql
-│       │       ├── V2__security.sql   (RLS, roles, audit triggers)
-│       │       ├── V3__seed_synthetic_data.sql
-│       │       ├── V4__transfer_function.sql
-│       │       ├── V5__seed_users.sql
-│       │       └── V6__audit_chain.sql
-│       └── test/java/com/finshield/
-├── vaultscan/                 Standalone audit-chain verifier
+│       ├── main/java/com/finshield/
+│       │   ├── api/           REST controllers
+│       │   ├── account/       AccountQueryService (RLS-scoped queries)
+│       │   ├── audit/         AuditVerifier
+│       │   ├── lab/           Ethical hacking lab (SQLi, BOLA)
+│       │   ├── security/      JWT, RLS context, SecurityConfig
+│       │   └── transfer/      TransferService
+│       └── resources/db/migration/
+│           ├── V1__schema.sql
+│           ├── V2__security.sql           RLS policies, roles, append-only triggers
+│           ├── V3__seed_synthetic_data.sql
+│           ├── V4__transfer_function.sql
+│           ├── V5__seed_users.sql
+│           ├── V6__audit_chain.sql
+│           ├── V7__denorm_account_numbers.sql  Adds from/to account number columns to transfers
+│           ├── V8__fix_transfer_function.sql   Updates fn_post_transfer to populate them
+│           └── V9__rich_seed_data.sql          9 historical transfers + 10 security events
+├── frontend/                  React + Vite + Tailwind UI
+│   └── src/
+│       ├── api/client.js      Typed fetch wrappers
+│       ├── context/           AuthContext (JWT, sessionStorage)
+│       └── pages/             Overview, Accounts, Transfers, Activity,
+│                              SecurityCenter, AuditLedger, ThreatLab, SessionAccess
+├── vaultscan/                 Standalone audit-chain verifier CLI
 ├── docker/postgres/init/      01-roles.sql (runs at container start)
 ├── docs/                      audit-design.md, vaultscan.md, evidence-report.md
 ├── ops/                       backup.sh, restore.sh, explain-analyze.sql
 ├── zap/                       zap-scan.sh, zap-rules.tsv
 ├── .github/workflows/zap.yml  CI security scan
-├── audit-anchor.json          External chain checkpoint (Day 4 dev snapshot)
+├── audit-anchor.json          External chain checkpoint
 ├── docker-compose.yml
 └── Makefile
 ```

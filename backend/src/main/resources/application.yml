@@ -1,14 +1,16 @@
 spring:
   application:
     name: finshield
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   datasource:                      # runtime: least-privilege role
-    url: jdbc:postgresql://localhost:5433/finshield
-    username: finshield_app
-    password: ${FINSHIELD_APP_PW:app_dev_pw}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/finshield}
+    username: ${SPRING_DATASOURCE_USERNAME:finshield_app}
+    password: ${SPRING_DATASOURCE_PASSWORD:app_dev_pw}
   flyway:                          # migrations: owner role, separate connection
-    url: jdbc:postgresql://localhost:5433/finshield
-    user: finshield_owner
-    password: ${FINSHIELD_OWNER_PW:owner_dev_pw}
+    url: ${SPRING_FLYWAY_URL:${spring.datasource.url}}
+    user: ${SPRING_FLYWAY_USER:finshield_owner}
+    password: ${SPRING_FLYWAY_PASSWORD:owner_dev_pw}
     locations: classpath:db/migration
 
 management:
@@ -20,3 +22,5 @@ management:
 finshield:
   jwt:
     secret: ${FINSHIELD_JWT_SECRET:dev-only-local-secret-do-not-use-in-prod-0123456789}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
