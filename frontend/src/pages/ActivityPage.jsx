@@ -14,8 +14,9 @@ export default function ActivityPage() {
   const [typeFilter, setTypeFilter] = useState('ALL')
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['ledger'],
+    queryKey: ['ledger', auth?.claims?.sub],
     queryFn: () => getLedger(auth.token),
+    enabled: !!auth?.token,
   })
 
   const entryTypes = useMemo(() => {

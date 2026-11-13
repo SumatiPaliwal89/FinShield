@@ -55,15 +55,15 @@ export default function Overview() {
     setSwitching(u.username)
     try {
       const { token: t } = await login(u.username, u.password)
-      queryClient.clear()
       signin(t)
+      queryClient.clear()
     } catch (_) {}
     setSwitching(null)
   }
 
-  const accounts  = useQuery({ queryKey: ['accounts'],  queryFn: () => getAccounts(token)  })
-  const transfers = useQuery({ queryKey: ['transfers'], queryFn: () => getTransfers(token) })
-  const ledger    = useQuery({ queryKey: ['ledger'],    queryFn: () => getLedger(token)    })
+  const accounts  = useQuery({ queryKey: ['accounts',  user], queryFn: () => getAccounts(token),  enabled: !!token })
+  const transfers = useQuery({ queryKey: ['transfers', user], queryFn: () => getTransfers(token), enabled: !!token })
+  const ledger    = useQuery({ queryKey: ['ledger',    user], queryFn: () => getLedger(token),    enabled: !!token })
 
   const totalBalance = accounts.data?.reduce((s, a) => s + (a.balance ?? 0), 0) ?? 0
   const txCount      = transfers.data?.length ?? 0

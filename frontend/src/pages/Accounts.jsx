@@ -13,7 +13,7 @@ import { Building2 } from 'lucide-react'
 function AccountDrawer({ account, onClose }) {
   const { auth } = useAuth()
   const ledger = useQuery({
-    queryKey: ['ledger', account?.account_number],
+    queryKey: ['ledger', auth?.claims?.sub, account?.account_number],
     queryFn: () => getLedger(auth.token),
     enabled: !!account,
   })
@@ -81,8 +81,9 @@ export default function Accounts() {
   const [selected, setSelected] = useState(null)
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['accounts'],
+    queryKey: ['accounts', auth?.claims?.sub],
     queryFn: () => getAccounts(auth.token),
+    enabled: !!auth?.token,
   })
 
   if (error) return <ErrorState message={error.message} onRetry={refetch} />

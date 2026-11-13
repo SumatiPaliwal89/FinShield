@@ -37,9 +37,10 @@ export default function Transfers() {
   const [txError, setTxError] = useState(null)
   const [lastPayload, setLastPayload] = useState(null)
 
-  const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => getAccounts(token) })
-  const transfers = useQuery({ queryKey: ['transfers'], queryFn: () => getTransfers(token) })
-  const ledger = useQuery({ queryKey: ['ledger'], queryFn: () => getLedger(token) })
+  const user = auth?.claims?.sub
+  const accounts = useQuery({ queryKey: ['accounts',  user], queryFn: () => getAccounts(token),  enabled: !!token })
+  const transfers = useQuery({ queryKey: ['transfers', user], queryFn: () => getTransfers(token), enabled: !!token })
+  const ledger = useQuery({ queryKey: ['ledger',    user], queryFn: () => getLedger(token),    enabled: !!token })
 
   const accountOptions = accounts.data ?? []
 
